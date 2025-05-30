@@ -8,3 +8,6 @@ How To Run:
 7. Run `node index.js` ke **backend**
 8. Run `npm run dev` ke **fe**
 9. Have fun!
+
+
+(masih ada ngrok, ganti ke localhost dulu di tiap file yg ada ngroknya kalo gamau pake ngrok)
