@@ -117,7 +117,7 @@ watch(selectedPhotos, async (newVal) => {
 
 const getBase64FromProxy = async (imageUrl) => {
   try {
-    const proxyUrl = `http://localhost:3000/proxy-image?url=${encodeURIComponent(imageUrl)}`
+    const proxyUrl = `https://706b-36-73-249-255.ngrok-free.app/proxy-image?url=${encodeURIComponent(imageUrl)}`
     const response = await fetch(proxyUrl)
     const base64 = await response.text()
     return base64
