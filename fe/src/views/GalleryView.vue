@@ -1,73 +1,78 @@
 <template>
-  <div class="gallery-container">
-    <h2>Saved Photos</h2>
+  <div class="gallery-scroll-container">
+    <div class="gallery-container">
+      <h2>Saved Photos</h2>
 
     <div class="controls">
       <select v-model="selectedLayout">
+        <option value="1x1">1x1 Layout</option>
         <option value="1x3">1x3 Layout</option>
         <option value="2x2">2x2 Layout</option>
       </select>
       <button @click="clearSavedPhotos" class="clear-btn">Clear All Photos</button>
     </div>
 
-    <div class="frame-options-container">
-      <div class="select-frame-header">
-        <h3>Select Frame</h3>
-      </div>
+      <div class="frame-options-container">
+        <div class="select-frame-header">
+          <h3>Select Frame</h3>
+        </div>
 
-      <div class="frame-options">
-        <label
-          v-for="option in filteredFrameOptions"
-          :key="option.value"
-          class="frame-option"
-          @click="selectedFrame = option.value"
-        >
-          <div
-            :class="[
-              selectedLayout === '1x3' ? 'frame-preview-wrapper-1x3' : 'frame-preview-wrapper-2x2',
-              { selected: selectedFrame === option.value },
-            ]"
+        <div class="frame-options">
+          <label
+            v-for="option in filteredFrameOptions"
+            :key="option.value"
+            class="frame-option"
+            @click="selectedFrame = option.value"
           >
-            <img :src="option.value + '.jpg'" :alt="selectedLayout + ' Frame Preview'" />
-          </div>
-        </label>
+            <div
+              :class="[
+                selectedLayout === '1x3' ? 'frame-preview-wrapper-1x3' :
+                selectedLayout === '2x2' ? 'frame-preview-wrapper-2x2' :
+                'frame-preview-wrapper-1x1',
+                { selected: selectedFrame === option.value },
+              ]"
+            >
+              <img :src="option.value + '.jpg'" :alt="selectedLayout + ' Frame Preview'" />
+            </div>
+          </label>
+        </div>
       </div>
-    </div>
 
-    <div class="photo-grid">
-      <div
-        v-for="(photo, index) in savedPhotos"
-        :key="index"
-        class="photo-item"
-        :class="{ selected: selectedPhotos.includes(photo) }"
-      >
-        <img :src="photo.image" alt="Saved" />
-        <input type="checkbox" :value="photo" v-model="selectedPhotos" />
-        <button class="delete-btn" @click="deletePhoto(index)">×</button>
+      <div class="photo-grid">
+        <div
+          v-for="(photo, index) in savedPhotos"
+          :key="index"
+          class="photo-item"
+          :class="{ selected: selectedPhotos.includes(photo) }"
+        >
+          <img :src="photo.image" alt="Saved" />
+          <input type="checkbox" :value="photo" v-model="selectedPhotos" />
+          <button class="delete-btn" @click="deletePhoto(index)">×</button>
+        </div>
       </div>
-    </div>
 
-    <div v-if="isLoading" class="loading-spinner">
-      <span>Loading...</span>
-      <div class="spinner"></div>
-    </div>
-
-    <div v-if="collagePreview" class="collage-preview">
-      <div>
-        <h3>Collage Preview</h3>
-        <img :src="collagePreview" alt="Collage" />
+      <div v-if="isLoading" class="loading-spinner">
+        <span>Loading...</span>
+        <div class="spinner"></div>
       </div>
-      <div>
-        <button @click="downloadCollage" class="download-btn">Download Collage</button>
+
+      <div v-if="collagePreview" class="collage-preview">
+        <div>
+          <h3>Collage Preview</h3>
+          <img :src="collagePreview" alt="Collage" />
+        </div>
+        <div>
+          <button @click="downloadCollage" class="download-btn">Download Collage</button>
+        </div>
       </div>
-    </div>
 
-    <div v-if="qrCodeDataUrl" class="qr-preview">
-      <h3>Scan QR to download your collage!</h3>
-      <img :src="qrCodeDataUrl" alt="QR Code" style="max-width: 300px" />
-    </div>
+      <div v-if="qrCodeDataUrl" class="qr-preview">
+        <h3>Scan QR to download your collage!</h3>
+        <img :src="qrCodeDataUrl" alt="QR Code" style="max-width: 300px" />
+      </div>
 
-    <canvas ref="canvasRef" style="display: none"></canvas>
+      <canvas ref="canvasRef" style="display: none"></canvas>
+    </div>
   </div>
 </template>
 
@@ -90,6 +95,12 @@ const imgurLink = ref('')
 const imgurApiUrl = 'https://api.imgur.com/3/image' // Imgur API URL
 const qrCodeDataUrl = ref('')
 
+const frameOptions1x1 = [
+  { label: 'Frame 1', value: '1bg1' },
+  { label: 'Frame 2', value: '1bg2' },
+  // { label: 'Frame 3', value: '1bg3' },
+];
+
 const frameOptions1x3 = [
   { label: 'Frame 1', value: 'bg' },
   { label: 'Frame 2', value: 'bg2' },
@@ -102,9 +113,12 @@ const frameOptions2x2 = [
   { label: 'Frame 3', value: '2bg3' },
 ]
 
-const filteredFrameOptions = computed(() =>
-  selectedLayout.value === '1x3' ? frameOptions1x3 : frameOptions2x2,
-)
+const filteredFrameOptions = computed(() => {
+  if (selectedLayout.value === '1x3') return frameOptions1x3;
+  if (selectedLayout.value === '2x2') return frameOptions2x2;
+  if (selectedLayout.value === '1x1') return frameOptions1x1;
+  return [];
+});
 
 const loadSavedPhotos = () => {
   try {
@@ -161,7 +175,7 @@ watch(selectedPhotos, async (newVal) => {
 
 const getBase64FromProxy = async (imageUrl) => {
   try {
-    const proxyUrl = `http://localhost:3000/proxy-image?url=${encodeURIComponent(imageUrl)}`
+    const proxyUrl = `https://706b-36-73-249-255.ngrok-free.app/proxy-image?url=${encodeURIComponent(imageUrl)}`
     const response = await fetch(proxyUrl)
     const base64 = await response.text()
     return base64
@@ -191,10 +205,18 @@ const generateCollage = async () => {
   let positions = [];
 
   const is2x2 = selectedLayout.value === '2x2';
+  const is1x1 = selectedLayout.value === '1x1';
   const framePath = `${selectedFrame.value}.jpg`;
   frameImage.src = framePath;
 
-  if (!is2x2) {
+  if (is1x1) {
+  collageWidth = 800;
+  collageHeight = 800;
+  photoSize = 600;
+  positions = [
+    { x: (collageWidth - photoSize) / 2, y: (collageHeight - photoSize) / 2 }
+  ];
+  } else if (is2x2) {
     collageWidth = 590;
     collageHeight = 1770;
     photoSize = collageWidth * 0.8;
@@ -262,7 +284,7 @@ const downloadCollage = async () => {
   const imageBase64 = canvas.toDataURL('image/png').split(',')[1] // Ambil base64-nya
 
   try {
-    const response = await fetch('http://localhost:3000/upload-image', {
+    const response = await fetch('https://706b-36-73-249-255.ngrok-free.app/upload-image', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -405,14 +427,48 @@ onMounted(loadSavedPhotos)
 </script>
 
 <style>
+
+.gallery-scroll-container {
+  height: 100vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #4f46e5 #f1f1f1;
+}
+
+.gallery-scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.gallery-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.gallery-scroll-container::-webkit-scrollbar-thumb {
+  background-color: #4f46e5;
+  border-radius: 10px;
+}
+
 /* Container styles */
 .gallery-container {
-  padding: 1.5rem;
+  padding: 1rem;
   max-width: 1200px;
   margin: auto;
   background-color: #f7f7f7;
   border-radius: 10px;
   text-align: center;
+  /* Remove overflow-y: auto from here since we're handling it in the parent */
+}
+
+/* Container styles */
+.gallery-container {
+  padding: 1rem;
+  max-width: 1200px;
+  margin: auto;
+  background-color: #f7f7f7;
+  border-radius: 10px;
+  text-align: center;
+  overflow-y: auto;
 }
 
 /* Title styling */
@@ -420,7 +476,7 @@ h2 {
   font-size: 2rem;
   font-weight: bold;
   color: #333;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 /* Controls */
@@ -445,7 +501,7 @@ h2 {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 2rem;
+  margin-top: 1rem;
 }
 
 /* Header for Select Frame */
@@ -490,12 +546,17 @@ h2 {
 }
 
 /* Frame preview wrapper styles */
+.frame-preview-wrapper-1x1, 
 .frame-preview-wrapper-1x3,
 .frame-preview-wrapper-2x2 {
   display: inline-block;
   margin: 10px;
   border-radius: 6px;
   overflow: hidden;
+}
+.frame-preview-wrapper-1x1 {
+  width: 240px;
+  height: 240px;
 }
 
 .frame-preview-wrapper-1x3 {

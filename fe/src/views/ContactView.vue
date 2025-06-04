@@ -44,12 +44,16 @@
   
   <style>
         .contact-container {
-            width:100%;
-            position: relative;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+          width: 100%;
+          min-height: 100vh;
+          position: relative;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding-top: 80px; /* Add padding to account for navbar */
+          overflow: hidden;
+
         }
 
         .content-wrapper {
@@ -146,7 +150,7 @@
 
         /* Background elements */
         .wave-bg {
-            position: absolute;
+            position: fixed;
             width: 100%;
             height: 100%;
             top: 0;

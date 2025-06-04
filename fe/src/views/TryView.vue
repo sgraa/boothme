@@ -28,56 +28,57 @@
         <div v-if="capturedImage" class="captured-container">
           <div class="image-preview">
             <img :src="capturedImage" alt="Captured selfie" class="captured-image" />
-            <img v-if="generatedImage" :src="generatedImage" alt="Generated image" class="generated-image" />
-          </div>
-
-          <!-- Age and Gender Selection -->
-          <div v-if="!generatedImage && !isGenerating" class="age-gender-section">
-            <h3 class="section-title">Tell us about yourself</h3>
-            <div class="controls-container">
-              <div class="gender-controls">
-                <label class="gender-label">Gender:</label>
-                <div class="gender-buttons">
-                  <button 
-                    @click="selectedGender = 'male'" 
-                    :class="{ active: selectedGender === 'male' }"
-                    class="gender-btn"
-                  >
-                    Male
-                  </button>
-                  <button 
-                    @click="selectedGender = 'female'" 
-                    :class="{ active: selectedGender === 'female' }"
-                    class="gender-btn"
-                  >
-                    Female
-                  </button>
+            
+            <!-- Moved age-gender-section to be side by side with the image -->
+            <div v-if="!generatedImage && !isGenerating && showStyleControls" class="age-gender-section">
+              <h3 class="section-title">Tell us about yourself</h3>
+              <div class="controls-container">
+                <div class="gender-controls">
+                  <label class="gender-label">Gender:</label>
+                  <div class="gender-buttons">
+                    <button 
+                      @click="selectedGender = 'male'" 
+                      :class="{ active: selectedGender === 'male' }"
+                      class="gender-btn"
+                    >
+                      Male
+                    </button>
+                    <button 
+                      @click="selectedGender = 'female'" 
+                      :class="{ active: selectedGender === 'female' }"
+                      class="gender-btn"
+                    >
+                      Female
+                    </button>
+                  </div>
                 </div>
-              </div>
-              
-              <div class="age-controls">
-                <label class="age-label">Age: {{ selectedAge }} years</label>
-                <input 
-                  type="range" 
-                  v-model="selectedAge" 
-                  min="10" 
-                  max="50" 
-                  step="10"
-                  class="age-slider"
-                />
-                <div class="age-markers">
-                  <span>10</span>
-                  <span>20</span>
-                  <span>30</span>
-                  <span>40</span>
-                  <span>50+</span>
+                
+                <div class="age-controls">
+                  <label class="age-label">Age: {{ selectedAge }} years</label>
+                  <input 
+                    type="range" 
+                    v-model="selectedAge" 
+                    min="10" 
+                    max="50" 
+                    step="10"
+                    class="age-slider"
+                  />
+                  <div class="age-markers">
+                    <span>10</span>
+                    <span>20</span>
+                    <span>30</span>
+                    <span>40</span>
+                    <span>50+</span>
+                  </div>
                 </div>
               </div>
             </div>
+            
+            <img v-if="generatedImage" :src="generatedImage" alt="Generated image" class="generated-image" />
           </div>
 
           <!-- Style Options -->
-          <div v-if="!generatedImage && !isGenerating" class="style-section">
+          <div v-if="!generatedImage && !isGenerating && showStyleControls" class="style-section">
             <h3 class="style-title">Choose a Style Filter</h3>
             <div class="style-grid">
               <button 
@@ -98,7 +99,7 @@
           </div>
 
           <div class="action-buttons">
-            <button @click="retakePhoto" class="retake-btn">Retake</button>
+            <button @click="retakePhoto" class="retake-btn"> {{ generatedImage ? 'Try Another Style' : 'Retake' }}</button>
             <button @click="saveGeneratedPhoto" class="save-btn">Save Generated</button>
             <button @click="viewGallery" class="view-btn">View Gallery</button>
           </div>
@@ -142,12 +143,15 @@
   </div>
 </template>
 
+
+
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import QRCode from 'qrcode';
 
 const router = useRouter();
+const showStyleControls = ref(true); // Tambahkan ini di bagian atas script
 const videoElement = ref(null);
 const canvasElement = ref(null);
 const cameraContainer = ref(null);
@@ -253,7 +257,11 @@ const styles = [
 const startCamera = async () => {
   try {
     loadingState.value = 'Activating camera...';
-    stream.value = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    //stream.value = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    stream.value = await navigator.mediaDevices.getUserMedia({
+      video: true, // Gunakan ini dulu untuk mencoba kamera default
+      audio: false
+    });
     if (videoElement.value) {
       videoElement.value.srcObject = stream.value;
       cameraActive.value = true;
@@ -325,6 +333,7 @@ const optimizeImage = (imageData) => {
 const generateImage = async (stylePrompt) => {
   if (!capturedImage.value) return;
   isGenerating.value = true;
+  showStyleControls.value = false;
   loadingState.value = 'Preparing image...';
   try {
     const inputImage = await optimizeImage(capturedImage.value);
@@ -380,7 +389,7 @@ const generateImage = async (stylePrompt) => {
     };
 
     // Send request through our backend proxy
-    const response = await fetch('http://localhost:3000/api/sd/img2img', {
+    const response = await fetch('https://706b-36-73-249-255.ngrok-free.app/api/sd/img2img', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -412,9 +421,18 @@ const generateImage = async (stylePrompt) => {
 
 const viewGallery = () => router.push('/gallery');
 const retakePhoto = () => {
-  capturedImage.value = null;
-  generatedImage.value = null;
-  startCamera();
+  if (generatedImage.value) {
+    // If there's a generated image, just reset that and show style controls again
+    generatedImage.value = null;
+    isGenerating.value = false;
+    showStyleControls.value = true;
+  } else {
+    // If no generated image, go back to camera
+    capturedImage.value = null;
+    isGenerating.value = false;
+    showStyleControls.value = true;
+    startCamera();
+  }
 };
 const saveGeneratedPhoto = async () => {
   if (!generatedImage.value) return;
@@ -445,7 +463,19 @@ const saveGeneratedPhoto = async () => {
   localStorage.setItem('selfies', JSON.stringify(existingPhotos));
 };
 
-onMounted(() => {});
+// onMounted(() => {});
+onMounted(async () => {
+  try {
+    // Minta izin akses kamera tanpa langsung menampilkan feed
+    const streamTest = await navigator.mediaDevices.getUserMedia({ video: true });
+    streamTest.getTracks().forEach(track => track.stop()); // hentikan segera setelah dapat izin
+    console.log("Camera permission granted.");
+  } catch (error) {
+    console.warn("Camera permission denied or not granted yet:", error);
+    alert("This app needs access to your camera to work properly. Please allow camera access.");
+  }
+});
+
 onUnmounted(() => {
   if (stream.value) {
     stream.value.getTracks().forEach(track => track.stop());
@@ -455,21 +485,22 @@ onUnmounted(() => {
 
 <style scoped>
 .try-container {
-  min-height: 100vh;
+  /* min-height: 100vh; */
+  height: 100vh;
   display: flex;
   flex-direction: column;
   width: 100%;
   align-items: center;
   padding: 2rem;
   background: linear-gradient(to bottom, #f8fafc, #e2e8f0);
-  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-y: auto;
   position: relative;
 }
 
 .main-title {
-  font-size: 3rem;
+  font-size: 2rem;
   color: #0f172a;
-  margin-bottom: 1rem;
+  margin-bottom:rem;
   text-align: center;
   font-weight: 700;
   background: linear-gradient(135deg, #1e40af, #3b82f6);
@@ -479,10 +510,10 @@ onUnmounted(() => {
 }
 
 .info-text {
-  font-size: 1.2rem;
+  font-size: 1rem;
   color: #475569;
   max-width: 700px;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
   line-height: 1.6;
   text-align: center;
 }
@@ -491,7 +522,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
   width: 100%;
-  max-width: 1000px;
+  max-width: 100vw;
   margin: 0 auto 2rem auto;
   align-items: center;
   position: relative;
@@ -575,10 +606,10 @@ onUnmounted(() => {
   display: flex;
   gap: 2rem;
   justify-content: center;
-  align-items: flex-start; /* Changed from center to flex-start */
+  align-items: flex-start;
   width: 100%;
   margin-bottom: 2rem;
-  flex-wrap: wrap; /* Allow wrapping on smaller screens */
+  flex-wrap: wrap;
 }
 
 .captured-image,
@@ -592,14 +623,17 @@ onUnmounted(() => {
   padding: 1rem;
 }
 
+/* Updated age-gender-section styles */
 .age-gender-section {
-  width: 100%;
-  max-width: 1000px;
-  margin: 1rem auto;
+  width: 45%;
+  max-width: 400px;
   padding: 1.5rem;
   background: white;
   border-radius: 20px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
 }
 
 .section-title {
@@ -614,6 +648,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  flex-grow: 1;
+  justify-content: center;
 }
 
 .gender-controls {

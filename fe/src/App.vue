@@ -36,30 +36,31 @@
   font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
-body {
-  background-color: #f0f4ff;
+html, body {
   margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: auto;
+  background-color: #f0f4ff;
 }
 
 .app {
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
   width: 100%;
+  height: 100%;
 }
 
 .header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
   display: flex;
-  align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
-  padding: 1rem 5%;
-  background-color: white;
+  align-items: center;
+  padding: 1rem 3%;
+  background: white;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  z-index: 100;
+  flex-shrink: 0;
 }
 
 .logo a {
@@ -71,7 +72,10 @@ body {
 
 .nav {
   display: flex;
-  gap: 2rem;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  
 }
 
 .nav-link {
@@ -98,74 +102,62 @@ body {
 
 .try-button:hover {
   background-color: #1e293b;
+  
 }
 
 .main-content {
-  margin-top: 70px; /* Add spacing for fixed header */
-  width: 100%;
+  flex: 1;
   display: flex;
-  justify-content: center; /* Center content horizontally */
-  padding: 0 20px; /* Default padding for small screens */
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  overflow: hidden;
 }
 
-.content-container {
-  width: 100%;
-  max-width: 1200px; /* Limit maximum width */
+.main-content {
+  flex: 1;
+  max-height: calc(100vh - 70px); /* tergantung tinggi header */
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 70px;
 }
 
-/* Responsive styles */
-/* Tablet */
-@media (min-width: 768px) and (max-width: 1023px) {
-  .main-content {
-    padding: 0 40px;
-  }
-  
-  .content-container {
-    max-width: 900px;
-  }
-}
+/* ---------- Responsive Styles ---------- */
 
-/* Desktop */
-@media (min-width: 1024px) {
-  .main-content {
-    padding: 0 60px;
-  }
-}
-
-/* Mobile enhancements */
-@media (max-width: 767px) {
+/* Responsive: Tablet Portrait & Landscape */
+@media (max-width: 1280px) {
   .header {
-    flex-direction: column;
+    padding: 0.75rem 2%;
+  }
+
+  .main-content {
     padding: 1rem;
   }
- 
-  .logo {
-    margin-bottom: 1rem;
-  }
- 
+
   .nav {
     gap: 1rem;
-    margin-bottom: 1rem;
-    flex-wrap: wrap; /* Allow nav links to wrap on very small screens */
     justify-content: center;
   }
- 
-  .main-content {
-    margin-top: 150px; /* Adjust for taller mobile header */
-    padding: 0 15px;
-  }
-  
-  /* Show menu items one per line on very small screens */
-  @media (max-width: 400px) {
-    .nav {
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    
-    .main-content {
-      margin-top: 200px; /* Adjust for even taller header on small mobile */
-    }
+
+  .try-button {
+    padding: 0.4rem 1rem;
   }
 }
+
+/* Small Tablet or Mobile */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .nav {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+}
+
 </style>
