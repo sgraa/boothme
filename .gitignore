@@ -46,9 +46,3 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
-
-# Stable Diffusion WebUI specific
-stable-diffusion-webui/outputs/
-stable-diffusion-webui/logs/
-stable-diffusion-webui/models/
-stable-diffusion-webui/venv/ 
