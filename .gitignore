@@ -46,3 +46,8 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+
+# Models
+sd_models/
+sd_outputs/img2img-images/
+sd_outputs/txt2img-images/

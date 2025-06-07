@@ -1,10 +1,8 @@
 How To Run:
-1. Clone [Stable Diffusion](https://github.com/AUTOMATIC1111/stable-diffusion-webui.git)
-2. Download [Model](https://civitai.com/models/7371/rev-animated)
-3. Masukkan model ke folder models di Stable Diffusion-nya
-4. Run `webui-user.bat`
-5. Pilih model di bagian webui StableDiffusion
-6. Run `npm install` ke **backend**
-7. Run `node index.js` ke **backend**
-8. Run `npm run dev` ke **fe**
-9. Have fun!
+1. Download [Model](https://civitai.com/models/7371/rev-animated)
+3. Masukkan model ke folder `sd_models`
+4. Run `docker compose up --build`
+5. Akses StableDiffusion di `localhost:7860`
+6. Pilih model di bagian webui StableDiffusion, coba run beberapa request
+7. Akses BoothMe di `localhost:5173`
+8. Have fun!

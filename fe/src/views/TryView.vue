@@ -389,7 +389,7 @@ const generateImage = async (stylePrompt) => {
     };
 
     // Send request through our backend proxy
-    const response = await fetch('https://706b-36-73-249-255.ngrok-free.app/api/sd/img2img', {
+    const response = await fetch('http://localhost:7860/sdapi/v1/img2img', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./fe
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    volumes:
+      - ./fe:/app:cached
+      - /app/node_modules  # prevent node_modules from being overwritten
+
+  backend:
+    build: ./backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app:cached
+      - /app/node_modules
+    environment:
+      - SD_API_URL=http://stablediffusion:7860  # Access the WebUI from backend container
+
+  stablediffusion:
+    build: ./stable-diffusion
+    ports:
+      - "7860:7860"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    volumes:
+      - ./sd_models:/app/models/Stable-diffusion  # persist downloaded models
+      - ./sd_outputs:/app/outputs:cached  # persist generated images
+    environment:
+      - CLI_ARGS=--api --listen --enable-insecure-extension-access
+    restart: unless-stopped
