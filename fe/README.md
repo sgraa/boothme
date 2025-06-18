@@ -1,60 +1,61 @@
-# fe
+# BoothMe - AI Photo Booth
 
-This template should help get you started developing with Vue 3 in Vite.
+A web-based photo booth application that uses Stable Diffusion for AI-powered photo transformations.
 
-## Recommended IDE Setup
+## System Requirements
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- Docker and Docker Compose
+- NVIDIA GPU with CUDA support (for Stable Diffusion)
+- At least 8GB RAM
+- At least 10GB free disk space
 
-## Customize configuration
+## How To Run
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+1. Clone the repository:
+bash
+git clone https://github.com/sgraa/boothme.git
+cd boothme
 
-## Project Setup
 
-```sh
-npm install
-```
+2. Download the Stable Diffusion model:
+bash
+mkdir -p sd_models
+cd sd_models
 
-### Compile and Hot-Reload for Development
+Download the [Model](https://civitai.com/api/download/models/425083?type=Model&format=SafeTensor&size=full&fp=fp16) 
 
-```sh
-npm run dev
-```
+3. Start the application:
+bash
+docker compose up --build
 
-### Compile and Minify for Production
 
-```sh
-npm run build
-```
+4. Access the applications:
+- Stable Diffusion WebUI: http://localhost:7860
+- BoothMe Frontend: http://localhost:5173
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+5. Initial Setup:
+- Open Stable Diffusion WebUI (http://localhost:7860)
+- Go to Settings > Model
+- Select "revAnimated_v2Rebirth.safetensors" as the model
+- Click "Apply settings" and "Reload UI"
+- Try generating a test image to ensure everything works
 
-```sh
-npm run test:unit
-```
+6. Start using BoothMe:
+- Open http://localhost:5173 in your browser
+- Click "Try BoothMe" to start
+- Follow the on-screen instructions to take and transform photos
 
-### Run End-to-End Tests with [Playwright](https://playwright.dev)
+## Troubleshooting
 
-```sh
-# Install browsers for the first run
-npx playwright install
+If you encounter any issues:
+1. Make sure your GPU is properly detected by Docker
+2. Check if all containers are running: docker compose ps
+3. Check container logs: docker compose logs
+4. Ensure the model file is correctly downloaded and placed in sd_models directory
 
-# When testing on CI, must build the project first
-npm run build
+## Development
 
-# Runs the end-to-end tests
-npm run test:e2e
-# Runs the tests only on Chromium
-npm run test:e2e -- --project=chromium
-# Runs the tests of a specific file
-npm run test:e2e -- tests/example.spec.ts
-# Runs the tests in debug mode
-npm run test:e2e -- --debug
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
+For development:
+- Frontend code is in the fe directory
+- Backend code is in the backend directory
+- Stable Diffusion configuration is in the stable-diffusion directory

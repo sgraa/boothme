@@ -116,7 +116,6 @@ html, body {
 
 .main-content {
   flex: 1;
-  max-height: calc(100vh - 70px); /* tergantung tinggi header */
   overflow: hidden;
   display: flex;
   justify-content: center;
