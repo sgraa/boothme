@@ -1,11 +1,6 @@
-<!-- src/views/TryView.vue -->
 <template>
   <div class="try-container">
     <h1 class="main-title">Try BoothMe</h1>
-    <p class="info-text">
-      Take a selfie and let our AI transform it into something amazing.
-      Your can download the result or share it with friends.
-    </p>
     
     <div class="camera-section">
       <div class="camera-container" ref="cameraContainer">
@@ -29,7 +24,6 @@
           <div class="image-preview">
             <img :src="capturedImage" alt="Captured selfie" class="captured-image" />
             
-            <!-- Moved age-gender-section to be side by side with the image -->
             <div v-if="!generatedImage && !isGenerating && showStyleControls" class="age-gender-section">
               <h3 class="section-title">Tell us about yourself</h3>
               <div class="controls-container">
@@ -77,7 +71,6 @@
             <img v-if="generatedImage" :src="generatedImage" alt="Generated image" class="generated-image" />
           </div>
 
-          <!-- Style Options -->
           <div v-if="!generatedImage && !isGenerating && showStyleControls" class="style-section">
             <h3 class="style-title">Choose a Style Filter</h3>
             <div class="style-grid">
@@ -105,13 +98,11 @@
           </div>
         </div>
         
-        <!-- Timer overlay -->
         <div v-if="timerActive" class="timer-overlay">
           <div class="timer-count">{{ timerCount }}</div>
         </div>
         
         <div v-if="cameraActive || capturedImage" class="camera-controls">
-          <!-- Timer options when camera is active but no photo is captured yet -->
           <div v-if="cameraActive && !capturedImage" class="timer-options">
             <button @click="capturePhoto(0)" class="timer-btn" :class="{ active: selectedTimer === 0 }">
               No Timer
@@ -146,12 +137,13 @@
 
 
 <script setup>
+// Script tidak ada perubahan
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import QRCode from 'qrcode';
 
 const router = useRouter();
-const showStyleControls = ref(true); // Tambahkan ini di bagian atas script
+const showStyleControls = ref(true);
 const videoElement = ref(null);
 const canvasElement = ref(null);
 const cameraContainer = ref(null);
@@ -168,17 +160,15 @@ const selectedAge = ref(20);
 const selectedGender = ref('male');
 const showAgeGenderControls = ref(false);
 
-// Define the checkStorageQuota function
 const checkStorageQuota = async () => {
   if ('storage' in navigator && 'estimate' in navigator.storage) {
     const { usage, quota } = await navigator.storage.estimate();
     console.log(`Using ${usage} out of ${quota} bytes.`);
     return usage < quota;
   }
-  return true; // Assume enough space if API is not available
+  return true;
 };
 
-// 💡 Optimized prompts
 const styles = [
         {
           id: 1,
@@ -257,9 +247,8 @@ const styles = [
 const startCamera = async () => {
   try {
     loadingState.value = 'Activating camera...';
-    //stream.value = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
     stream.value = await navigator.mediaDevices.getUserMedia({
-      video: true, // Gunakan ini dulu untuk mencoba kamera default
+      video: true,
       audio: false
     });
     if (videoElement.value) {
@@ -313,7 +302,7 @@ const optimizeImage = (imageData) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       let [width, height] = [img.width, img.height];
-      const maxDimension = 512; // Reduce max dimension for faster upload
+      const maxDimension = 512;
       if (width > height && width > maxDimension) {
         height = Math.round(height * maxDimension / width);
         width = maxDimension;
@@ -324,7 +313,7 @@ const optimizeImage = (imageData) => {
       canvas.width = width;
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', 0.7)); // Reduce quality for faster upload
+      resolve(canvas.toDataURL('image/jpeg', 0.7));
     };
     img.src = imageData;
   });
@@ -339,14 +328,10 @@ const generateImage = async (stylePrompt) => {
     const inputImage = await optimizeImage(capturedImage.value);
     const base64Data = inputImage.split(',')[1];
     
-    // Find the selected style
     const selectedStyle = styles.find(style => style.prompt === stylePrompt);
-    
-    // Include age and gender in the prompt
     const ageGenderPrompt = `a ${selectedAge.value} year old ${selectedGender.value} person`;
     const finalPrompt = `${selectedStyle.prompt}, ${ageGenderPrompt}`;
 
-    // Prepare the request payload for Stable Diffusion
     const payload = {
       init_images: [base64Data],
       prompt: finalPrompt,
@@ -388,7 +373,6 @@ const generateImage = async (stylePrompt) => {
                             selectedStyle.name === 'Painterly' ? 30 : 20
     };
 
-    // Send request through our backend proxy
     const response = await fetch('http://localhost:7860/sdapi/v1/img2img', {
       method: 'POST',
       headers: {
@@ -422,12 +406,10 @@ const generateImage = async (stylePrompt) => {
 const viewGallery = () => router.push('/gallery');
 const retakePhoto = () => {
   if (generatedImage.value) {
-    // If there's a generated image, just reset that and show style controls again
     generatedImage.value = null;
     isGenerating.value = false;
     showStyleControls.value = true;
   } else {
-    // If no generated image, go back to camera
     capturedImage.value = null;
     isGenerating.value = false;
     showStyleControls.value = true;
@@ -437,7 +419,6 @@ const retakePhoto = () => {
 const saveGeneratedPhoto = async () => {
   if (!generatedImage.value) return;
 
-  // Optimize the generated image before saving
   const optimizedImage = await optimizeImage(generatedImage.value);
 
   const hasSpace = await checkStorageQuota();
@@ -448,27 +429,24 @@ const saveGeneratedPhoto = async () => {
 
   const photoData = {
     id: Date.now().toString(36),
-    image: optimizedImage, // Use the optimized image
+    image: optimizedImage,
     timestamp: new Date().toISOString(),
     isGenerated: true
   };
   const existingPhotos = JSON.parse(localStorage.getItem('selfies') || '[]');
   
-  // Limit the number of saved photos
   if (existingPhotos.length >= 10) {
-    existingPhotos.shift(); // Remove the oldest photo
+    existingPhotos.shift();
   }
   
   existingPhotos.push(photoData);
   localStorage.setItem('selfies', JSON.stringify(existingPhotos));
 };
 
-// onMounted(() => {});
 onMounted(async () => {
   try {
-    // Minta izin akses kamera tanpa langsung menampilkan feed
     const streamTest = await navigator.mediaDevices.getUserMedia({ video: true });
-    streamTest.getTracks().forEach(track => track.stop()); // hentikan segera setelah dapat izin
+    streamTest.getTracks().forEach(track => track.stop());
     console.log("Camera permission granted.");
   } catch (error) {
     console.warn("Camera permission denied or not granted yet:", error);
@@ -484,23 +462,23 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* PERUBAHAN UTAMA: Mengatur .try-container agar bisa di-scroll secara normal */
 .try-container {
-  /* min-height: 100vh; */
-  height: 100vh;
+  /* Hapus height: 100vh dan overflow-y: auto */
+  width: 100%;
   display: flex;
   flex-direction: column;
-  width: 100%;
   align-items: center;
   padding: 2rem;
   background: linear-gradient(to bottom, #f8fafc, #e2e8f0);
-  overflow-y: auto;
   position: relative;
+  box-sizing: border-box; /* Tambahkan ini untuk konsistensi padding */
 }
 
 .main-title {
   font-size: 2rem;
   color: #0f172a;
-  margin-bottom:rem;
+  margin-bottom: 1rem; /* diperbaiki dari rem */
   text-align: center;
   font-weight: 700;
   background: linear-gradient(135deg, #1e40af, #3b82f6);
@@ -532,7 +510,7 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   max-width: 1000px;
-  aspect-ratio: 16/9;
+  /* aspect-ratio tidak lagi diperlukan karena tinggi bisa fleksibel */
   border-radius: 20px;
   background-color: #ffffff;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
@@ -541,7 +519,7 @@ onUnmounted(() => {
 
 .camera-placeholder {
   width: 100%;
-  height: 100%;
+  min-height: 400px; /* beri tinggi minimum agar tidak gepeng */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -587,10 +565,14 @@ onUnmounted(() => {
 
 .camera-feed {
   width: 100%;
-  height: 100%;
+  height: auto; /* biarkan tinggi menyesuaikan */
+  max-height: 95vh; /* batasi tinggi video agar tidak terlalu besar */
   object-fit: cover;
+  display: block; /* untuk menghilangkan spasi bawah */
+  transform: scaleX(-1); 
 }
 
+/* PERUBAHAN UTAMA: Menghapus overflow */
 .captured-container {
   width: 100%;
   height: auto;
@@ -599,7 +581,7 @@ onUnmounted(() => {
   align-items: center;
   padding: 1rem;
   background: transparent;
-  overflow-y: auto;
+  /* Hapus overflow-y: auto; */
 }
 
 .image-preview {
@@ -623,7 +605,10 @@ onUnmounted(() => {
   padding: 1rem;
 }
 
-/* Updated age-gender-section styles */
+.captured-image {
+  transform: scaleX(-1); /* <-- TAMBAHKAN BLOK INI */
+}
+
 .age-gender-section {
   width: 45%;
   max-width: 400px;
@@ -652,14 +637,14 @@ onUnmounted(() => {
   justify-content: center;
 }
 
-.gender-controls {
+.gender-controls, .age-controls {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1rem;
 }
 
-.gender-label {
+.gender-label, .age-label {
   font-size: 1.1rem;
   color: #475569;
   font-weight: 500;
@@ -690,19 +675,6 @@ onUnmounted(() => {
 .gender-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.age-controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.age-label {
-  font-size: 1.1rem;
-  color: #475569;
-  font-weight: 500;
 }
 
 .age-slider {
@@ -739,6 +711,7 @@ onUnmounted(() => {
   font-size: 0.9rem;
 }
 
+/* PERUBAHAN UTAMA: Menghapus overflow */
 .style-section {
   width: 100%;
   max-width: 1000px;
@@ -747,7 +720,7 @@ onUnmounted(() => {
   background: white;
   border-radius: 20px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  overflow-y: auto;
+  /* Hapus overflow-y: auto; */
 }
 
 .style-title {
@@ -758,13 +731,13 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
+/* PERUBAHAN UTAMA: Menghapus overflow */
 .style-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 1rem;
   padding: 1rem;
-  max-height: 400px; /* Set a max height */
-  overflow-y: auto; /* Make grid scrollable if needed */
+  /* Hapus max-height dan overflow-y */
 }
 
 .style-btn {
@@ -810,7 +783,6 @@ onUnmounted(() => {
   color: #64748b;
 }
 
-/* Timer overlay */
 .timer-overlay {
   position: absolute;
   top: 0;
@@ -992,186 +964,48 @@ onUnmounted(() => {
 }
 
 /* Responsive styles */
-/* Tablet */
 @media (max-width: 1024px) {
-  .main-title {
-    font-size: 2rem;
-  }
-  
-  .info-text {
-    font-size: 1rem;
-    max-width: 600px;
-  }
+  .main-title { font-size: 2rem; }
+  .info-text { font-size: 1rem; max-width: 600px; }
 }
 
-/* Mobile */
 @media (max-width: 768px) {
-  .try-container {
-    padding: 1rem;
-    height: auto;
-  }
-  
-  .main-title {
-    font-size: 2.2rem;
-  }
-  
-  .info-text {
-    font-size: 0.95rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .camera-container {
-    max-width: 100%;
-    aspect-ratio: 4/3; /* Better aspect ratio for mobile */
-  }
-  
-  .action-buttons {
-    padding: 1rem;
-    flex-direction: column;
-    gap: 0.75rem;
-    width: 90%;
-  }
-  
-  .save-btn, .retake-btn, .view-btn {
-    width: 100%;
-    min-width: unset;
-    padding: 0.75rem 1.5rem;
-    font-size: 0.95rem;
-  }
-  
-  .camera-btn {
-    padding: 0.875rem 1.75rem;
-    font-size: 1rem;
-  }
-  
-  .timer-count {
-    font-size: 5rem;
-  }
-
-  .image-preview {
-    flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .captured-image,
-  .generated-image {
-    max-width: 100%;
-    margin: 0 auto;
-  }
-
-  .style-section {
-    margin: 0.5rem auto;
-    padding: 1rem;
-  }
-
-  .style-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.75rem;
-    padding: 0.5rem;
-    max-height: 300px;
-  }
-
-  .style-btn {
-    padding: 0.75rem;
-    font-size: 0.9rem;
-  }
-
-  .age-gender-section {
-    padding: 1rem;
-  }
-  
-  .section-title {
-    font-size: 1.3rem;
-  }
-  
-  .gender-btn {
-    padding: 0.625rem 1.25rem;
-    font-size: 0.95rem;
-  }
-  
-  .age-slider {
-    max-width: 300px;
-  }
+  .try-container { padding: 1rem; }
+  .main-title { font-size: 2.2rem; }
+  .info-text { font-size: 0.95rem; margin-bottom: 1.5rem; }
+  .camera-container { max-width: 100%; aspect-ratio: 4/3; }
+  .action-buttons { padding: 1rem; flex-direction: column; gap: 0.75rem; width: 90%; }
+  .save-btn, .retake-btn, .view-btn { width: 100%; min-width: unset; padding: 0.75rem 1.5rem; font-size: 0.95rem; }
+  .camera-btn { padding: 0.875rem 1.75rem; font-size: 1rem; }
+  .timer-count { font-size: 5rem; }
+  .image-preview { flex-direction: column; gap: 1rem; margin-bottom: 1rem; }
+  .captured-image, .generated-image { max-width: 100%; margin: 0 auto; }
+  .style-section { margin: 0.5rem auto; padding: 1rem; }
+  .style-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; padding: 0.5rem; }
+  .style-btn { padding: 0.75rem; font-size: 0.9rem; }
+  .age-gender-section { padding: 1rem; }
+  .section-title { font-size: 1.3rem; }
+  .gender-btn { padding: 0.625rem 1.25rem; font-size: 0.95rem; }
+  .age-slider { max-width: 300px; }
 }
 
-/* Small Mobile */
 @media (max-width: 480px) {
-  .main-title {
-    font-size: 1.5rem;
-  }
-  
-  .action-buttons {
-    width: 100%;
-    padding: 0.875rem;
-    gap: 0.5rem;
-  }
-  
-  .save-btn, .retake-btn, .view-btn {
-    padding: 0.75rem 1.25rem;
-    font-size: 0.9rem;
-    border-radius: 12px;
-  }
-  
-  .camera-btn {
-    padding: 0.75rem 1.5rem;
-    font-size: 0.95rem;
-    border-radius: 12px;
-  }
-  
-  .timer-options {
-    flex-wrap: wrap;
-  }
-  
-  .timer-btn {
-    font-size: 0.75rem;
-    padding: 0.2rem 0.5rem;
-  }
-  
-  .timer-count {
-    font-size: 4rem;
-  }
-
-  .age-gender-section {
-    padding: 0.875rem;
-  }
-  
-  .section-title {
-    font-size: 1.2rem;
-  }
-  
-  .gender-buttons {
-    flex-direction: column;
-    width: 100%;
-  }
-  
-  .gender-btn {
-    width: 100%;
-  }
-  
-  .age-slider {
-    max-width: 250px;
-  }
+  .main-title { font-size: 1.5rem; }
+  .action-buttons { width: 100%; padding: 0.875rem; gap: 0.5rem; }
+  .save-btn, .retake-btn, .view-btn { padding: 0.75rem 1.25rem; font-size: 0.9rem; border-radius: 12px; }
+  .camera-btn { padding: 0.75rem 1.5rem; font-size: 0.95rem; border-radius: 12px; }
+  .timer-options { flex-wrap: wrap; }
+  .timer-btn { font-size: 0.75rem; padding: 0.2rem 0.5rem; }
+  .timer-count { font-size: 4rem; }
+  .age-gender-section { padding: 0.875rem; }
+  .section-title { font-size: 1.2rem; }
+  .gender-buttons { flex-direction: column; width: 100%; }
+  .gender-btn { width: 100%; }
+  .age-slider { max-width: 250px; }
 }
 
-/* Scrollbar Styling */
-.style-grid::-webkit-scrollbar {
-  width: 8px;
-}
-
-.style-grid::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 4px;
-}
-
-.style-grid::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-  border-radius: 4px;
-}
-
-.style-grid::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
+/* PERUBAHAN UTAMA: Hapus blok styling scrollbar */
+/* Blok style untuk .style-grid::-webkit-scrollbar... telah dihapus */
 
 .skin-tone-info {
   margin: 1rem 0;
