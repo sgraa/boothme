@@ -3,14 +3,13 @@
     <div class="gallery-container">
       <h2>Saved Photos</h2>
 
-    <div class="controls">
-      <select v-model="selectedLayout">
-        <option value="1x1">1x1 Layout</option>
-        <option value="1x3">1x3 Layout</option>
-        <option value="2x2">2x2 Layout</option>
-      </select>
-      <button @click="clearSavedPhotos" class="clear-btn">Clear All Photos</button>
-    </div>
+      <div class="controls">
+        <select v-model="selectedLayout">
+          <option value="1x1">1x1 Layout</option>
+          <option value="2x2">2x2 Layout</option>
+        </select>
+        <button @click="clearSavedPhotos" class="clear-btn">Clear All Photos</button>
+      </div>
 
       <div class="frame-options-container">
         <div class="select-frame-header">
@@ -22,17 +21,19 @@
             v-for="option in filteredFrameOptions"
             :key="option.value"
             class="frame-option"
-            @click="selectedFrame = option.value"
+            @click="frameSelection = option.value"
           >
             <div
               :class="[
-                selectedLayout === '1x3' ? 'frame-preview-wrapper-1x3' :
-                selectedLayout === '2x2' ? 'frame-preview-wrapper-2x2' :
-                'frame-preview-wrapper-1x1',
-                { selected: selectedFrame === option.value },
+                // Gunakan logika untuk menentukan wrapper berdasarkan nilai 'option.value' atau 'selectedLayout'
+                // Jika option.value dimulai dengan '1bg', itu 1x1. Jika '2bg', itu 2x2.
+                option.value.startsWith('1bg') ? 'frame-preview-wrapper-1x1' :
+                option.value.startsWith('2bg') ? 'frame-preview-wrapper-2x2' :
+                'frame-preview-wrapper-1x1', // Default jika tidak ada yang cocok
+                { selected: frameSelection === option.value },
               ]"
             >
-              <img :src="option.value + '.jpg'" :alt="selectedLayout + ' Frame Preview'" />
+              <img :src="option.value + '.jpg'" :alt="option.label + ' Frame Preview'" />
             </div>
           </label>
         </div>
@@ -80,31 +81,30 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import QRCode from 'qrcode'
 
+// --- State Management ---
 const savedPhotos = ref([])
 const selectedPhotos = ref([])
 const collagePreview = ref('')
 const canvasRef = ref(null)
-const selectAll = ref(false)
 const isLoading = ref(false)
-
-const selectedFrame = ref('bg')
-const selectedLayout = ref('1x3')
-
-const clientId = 'fabfda01b119459'
-const imgurLink = ref('')
-const imgurApiUrl = 'https://api.imgur.com/3/image' // Imgur API URL
 const qrCodeDataUrl = ref('')
 
+const generatedImage = ref(null)
+
+// Pengaturan layout dan frame
+const selectedLayout = ref('1x1') // Default diubah ke 1x1
+const frameSelection = ref('1bg1') // ref yang akan menyimpan nilai frame yang sedang dipilih
+
+// Objek untuk menyimpan pilihan frame terakhir untuk setiap layout
+const lastSelectedFrames = ref({
+  '1x1': '1bg1',
+  '2x2': '2bg',
+})
+
+// --- Constants (Frame Options) ---
 const frameOptions1x1 = [
   { label: 'Frame 1', value: '1bg1' },
   { label: 'Frame 2', value: '1bg2' },
-  // { label: 'Frame 3', value: '1bg3' },
-];
-
-const frameOptions1x3 = [
-  { label: 'Frame 1', value: 'bg' },
-  { label: 'Frame 2', value: 'bg2' },
-  { label: 'Frame 3', value: 'bg3' },
 ]
 
 const frameOptions2x2 = [
@@ -113,321 +113,310 @@ const frameOptions2x2 = [
   { label: 'Frame 3', value: '2bg3' },
 ]
 
+// --- Computed Properties ---
 const filteredFrameOptions = computed(() => {
-  if (selectedLayout.value === '1x3') return frameOptions1x3;
-  if (selectedLayout.value === '2x2') return frameOptions2x2;
-  if (selectedLayout.value === '1x1') return frameOptions1x1;
-  return [];
-});
+  if (selectedLayout.value === '2x2') return frameOptions2x2
+  if (selectedLayout.value === '1x1') return frameOptions1x1
+  return []
+})
 
+const selectedFrame = computed(() => frameSelection.value)
+
+// --- Watchers ---
+watch(selectedLayout, (newLayout, oldLayout) => {
+  if (oldLayout) {
+    lastSelectedFrames.value[oldLayout] = frameSelection.value
+  }
+
+  frameSelection.value = lastSelectedFrames.value[newLayout] || filteredFrameOptions.value[0]?.value || ''
+
+  const currentFrameOptionsValues = filteredFrameOptions.value.map((option) => option.value)
+  if (!currentFrameOptionsValues.includes(frameSelection.value)) {
+    frameSelection.value = filteredFrameOptions.value[0]?.value || ''
+  }
+
+  if (selectedPhotos.value.length > 0) {
+    generateCollage()
+  } else {
+    collagePreview.value = ''
+    qrCodeDataUrl.value = ''
+  }
+})
+
+watch(
+  [selectedPhotos, frameSelection, selectedLayout],
+  async () => {
+    const requiredPhotos = { '1x1': 1, '2x2': 4 } // Menghapus 1x3
+    
+    if (selectedPhotos.value.length === requiredPhotos[selectedLayout.value]) {
+      await generateCollage()
+    } else {
+      collagePreview.value = ''
+      qrCodeDataUrl.value = ''
+    }
+  },
+  { deep: true },
+)
+
+// --- Functions ---
 const loadSavedPhotos = () => {
   try {
     const photos = JSON.parse(localStorage.getItem('selfies') || '[]')
-    savedPhotos.value = photos.map((photo) => {
-      // Handle both old format and new SD API format
-      if (typeof photo === 'string') {
-        return { id: Date.now() + Math.random(), image: photo }
-      } else if (photo.image) {
-        // If the image is already in base64 format
-        return {
-          id: photo.id || Date.now().toString(36),
-          image: photo.image,
-          timestamp: photo.timestamp || new Date().toISOString(),
-          isGenerated: photo.isGenerated || false
+    savedPhotos.value = photos
+      .map((photo) => {
+        if (typeof photo === 'string') {
+          return { id: Date.now() + Math.random(), image: photo, timestamp: new Date().toISOString(), isGenerated: false }
+        } else if (photo.image) {
+          return {
+            id: photo.id || Date.now().toString(36),
+            image: photo.image,
+            timestamp: photo.timestamp || new Date().toISOString(),
+            isGenerated: photo.isGenerated || false,
+          }
+        } else if (photo.images && photo.images.length > 0) {
+          return {
+            id: photo.id || Date.now().toString(36),
+            image: `data:image/png;base64,${photo.images[0]}`,
+            timestamp: photo.timestamp || new Date().toISOString(),
+            isGenerated: true,
+          }
         }
-      } else if (photo.images && photo.images.length > 0) {
-        // Handle SD API response format
-        return {
-          id: photo.id || Date.now().toString(36),
-          image: `data:image/png;base64,${photo.images[0]}`,
-          timestamp: photo.timestamp || new Date().toISOString(),
-          isGenerated: true
-        }
-      }
-      return null
-    }).filter(Boolean) // Remove any null entries
+        return null
+      })
+      .filter(Boolean)
   } catch (err) {
     console.error('Error loading photos:', err)
   }
 }
 
-const toggleSelectAll = () => {
-  if (selectAll.value) {
-    selectedPhotos.value = [...savedPhotos.value]
-  } else {
-    selectedPhotos.value = []
-  }
-}
-
-const clearSelection = () => {
-  selectedPhotos.value = []
-  selectAll.value = false
-}
-
-watch(selectedPhotos, async (newVal) => {
-  selectAll.value = newVal.length === savedPhotos.value.length && newVal.length > 0
-  if (newVal.length > 0) {
-    await generateCollage()
-  } else {
-    collagePreview.value = ''
-  }
-})
-
-const getBase64FromProxy = async (imageUrl) => {
-  try {
-    const proxyUrl = `https://706b-36-73-249-255.ngrok-free.app/proxy-image?url=${encodeURIComponent(imageUrl)}`
-    const response = await fetch(proxyUrl)
-    const base64 = await response.text()
-    return base64
-  } catch (err) {
-    console.error('Proxy error:', err)
-    return null
-  }
-}
-
 const loadImage = (src) => {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-};
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = (e) => {
+      console.error(`Failed to load image: ${src}`, e)
+      reject(e)
+    }
+    img.src = src
+  })
+}
 
 const generateCollage = async () => {
-  isLoading.value = true;
+  isLoading.value = true
+  qrCodeDataUrl.value = ''
+  collagePreview.value = ''
 
-  const frameImage = new Image();
-  let collageWidth = 1210;
-  let collageHeight = 1410;
-  let photoPadding = 50;
-  let photoSize = 500;
-  let positions = [];
+  const frameImage = new Image()
+  let collageWidth
+  let collageHeight
+  let photoPadding = 50 // Default padding
+  let photoSize
+  let positions = []
 
-  const is2x2 = selectedLayout.value === '2x2';
-  const is1x1 = selectedLayout.value === '1x1';
-  const framePath = `${selectedFrame.value}.jpg`;
-  frameImage.src = framePath;
+  const currentSelectedFrame = selectedFrame.value
+  const framePath = `${currentSelectedFrame}.jpg`
+  frameImage.src = framePath
 
-  if (is1x1) {
-  collageWidth = 800;
-  collageHeight = 800;
-  photoSize = 600;
-  positions = [
-    { x: (collageWidth - photoSize) / 2, y: (collageHeight - photoSize) / 2 }
-  ];
-  } else if (is2x2) {
-    collageWidth = 590;
-    collageHeight = 1770;
-    photoSize = collageWidth * 0.8;
-    let y = 50;
-    for (let i = 0; i < 3; i++) {
-      positions.push({ x: (collageWidth - photoSize) / 2, y });
-      y += photoSize + photoPadding;
-    }
-  } else {
-    collageWidth = 800;
-    collageHeight = 1000;
-    photoSize = (collageWidth - 3 * 80) / 2;
-    const totalWidth = photoSize * 2 + 80; // Lebar total dua foto + padding
-    const totalHeight = photoSize * 2 + 80; // Tinggi total dua foto + padding
+  try {
+    await new Promise((resolve, reject) => {
+      frameImage.onload = resolve
+      frameImage.onerror = (e) => {
+        console.error(`Error loading frame image: ${framePath}`, e)
+        reject(e)
+      }
+    })
+  } catch (error) {
+    isLoading.value = false
+    console.error('Could not load frame image. Please check path and file existence.', error)
+    return
+  }
 
-    const startX = (collageWidth - totalWidth) / 2; // Posisi X untuk memulai foto pertama di tengah
-    const startY = (collageHeight - totalHeight) / 2; // Posisi Y untuk memulai foto pertama di tengah
+  const requiredPhotos = { '1x1': 1, '2x2': 4 } // Menghapus 1x3
+  if (selectedPhotos.value.length !== requiredPhotos[selectedLayout.value]) {
+    isLoading.value = false
+    collagePreview.value = ''
+    qrCodeDataUrl.value = ''
+    return
+  }
+
+  // --- LOGIKA RASIO FRAME DAN PENEMPATAN FOTO ---
+  if (selectedLayout.value === '1x1') {
+    collageWidth = 800
+    collageHeight = 800
+    photoPadding = 100;
+    photoSize = collageWidth - (2 * photoPadding);
+    positions = [{ x: photoPadding, y: photoPadding }];
+  } else if (selectedLayout.value === '2x2') {
+    collageWidth = 1400
+    collageHeight = 1400
+    photoPadding = 80
+
+    photoSize = (collageWidth - 3 * photoPadding) / 2
+
+    const startX = photoPadding
+    const startY = photoPadding
     positions = [
-      { x: startX, y: startY }, // Foto pertama
-      { x: startX + photoSize + 50, y: startY }, // Foto kedua
-      { x: startX, y: startY + photoSize + 50 }, // Foto ketiga
-      { x: startX + photoSize + 50, y: startY + photoSize + 50 }, // Foto keempat
+      { x: startX, y: startY },
+      { x: startX + photoSize + photoPadding, y: startY },
+      { x: startX, y: startY + photoSize + photoPadding },
+      { x: startX + photoSize + photoPadding, y: startY + photoSize + photoPadding },
     ]
   }
 
-  await new Promise((resolve, reject) => {
-    frameImage.onload = resolve;
-    frameImage.onerror = reject;
-  });
+  const imagePromises = selectedPhotos.value.map((photo) => loadImage(photo.image))
+  const loadedImages = await Promise.allSettled(imagePromises)
 
-  const imagePromises = selectedPhotos.value.map((photo) =>
-    loadImage(photo.image).then((img) => img)
-  );
+  const canvas = canvasRef.value
+  const ctx = canvas.getContext('2d')
+  canvas.width = collageWidth
+  canvas.height = collageHeight
+  ctx.clearRect(0, 0, collageWidth, collageHeight)
+  ctx.drawImage(frameImage, 0, 0, collageWidth, collageHeight)
 
-  const loadedImages = await Promise.all(imagePromises);
-
-  const canvas = canvasRef.value;
-  const ctx = canvas.getContext('2d');
-  canvas.width = collageWidth;
-  canvas.height = collageHeight;
-  ctx.clearRect(0, 0, collageWidth, collageHeight);
-  ctx.drawImage(frameImage, 0, 0, collageWidth, collageHeight);
-
-  loadedImages.forEach((img, i) => {
-    if (positions[i]) {
-      const { x, y } = positions[i];
-      ctx.drawImage(img, x, y, photoSize, photoSize);
+  loadedImages.forEach((result, i) => {
+    if (result.status === 'fulfilled' && positions[i]) {
+      const img = result.value
+      const { x, y } = positions[i]
+      ctx.drawImage(img, x, y, photoSize, photoSize)
+    } else if (result.status === 'rejected') {
+      console.warn(`Skipping image at index ${i} due to load error:`, result.reason)
     }
-  });
+  })
 
-  const previewCanvas = document.createElement('canvas');
-  const previewCtx = previewCanvas.getContext('2d');
-  const previewWidth = 300;
-  const previewHeight = Math.floor((collageHeight / collageWidth) * previewWidth);
-  previewCanvas.width = previewWidth;
-  previewCanvas.height = previewHeight;
-  previewCtx.drawImage(canvas, 0, 0, collageWidth, collageHeight, 0, 0, previewWidth, previewHeight);
+  const previewCanvas = document.createElement('canvas')
+  const previewCtx = previewCanvas.getContext('2d')
+  const previewWidth = 300
+  const previewHeight = Math.floor((collageHeight / collageWidth) * previewWidth)
+  previewCanvas.width = previewWidth
+  previewCanvas.height = previewHeight
+  previewCtx.drawImage(canvas, 0, 0, collageWidth, collageHeight, 0, 0, previewWidth, previewHeight)
 
-  collagePreview.value = previewCanvas.toDataURL('image/png');
-  isLoading.value = false;
-};
+  collagePreview.value = previewCanvas.toDataURL('image/png')
+  isLoading.value = false
+}
 
 const downloadCollage = async () => {
   const canvas = canvasRef.value
-  const imageBase64 = canvas.toDataURL('image/png').split(',')[1] // Ambil base64-nya
+  const imageBase64 = canvas.toDataURL('image/png').split(',')[1]
 
   try {
-    const response = await fetch('https://706b-36-73-249-255.ngrok-free.app/upload-image', {
+    const response = await fetch('http://localhost:3000/upload-image', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        imageBase64,
+        image: imageBase64,
       }),
     })
 
     if (!response.ok) {
-      throw new Error('Failed to upload image to backend')
+      const errorText = await response.text()
+      throw new Error(`Failed to upload image to backend: ${response.status} ${response.statusText} - ${errorText}`)
     }
 
     const data = await response.json()
     const imgurLink = data.link
 
     if (imgurLink) {
-      console.log('Image uploaded to Imgur:', imgurLink);
-      qrCodeDataUrl.value = await QRCode.toDataURL(imgurLink);
-      console.log('QR Code generated');
+      console.log('Image uploaded to Imgur:', imgurLink)
+      qrCodeDataUrl.value = await QRCode.toDataURL(imgurLink)
+      console.log('QR Code generated')
     } else {
-      console.error('Failed to get image link from Imgur')
+      console.error('Failed to get image link from Imgur: No link in response')
     }
   } catch (error) {
     console.error('Error uploading image:', error.message)
+    alert(`Error uploading image: ${error.message}. Make sure your backend server is running and configured correctly and Imgur Client ID is valid.`)
   }
-};
+}
 
 const checkStorageQuota = async () => {
   if ('storage' in navigator && 'estimate' in navigator.storage) {
-    const { usage, quota } = await navigator.storage.estimate();
-    console.log(`Using ${usage} out of ${quota} bytes.`);
-    return usage < quota;
+    const { usage, quota } = await navigator.storage.estimate()
+    console.log(`Using ${usage} out of ${quota} bytes.`)
+    return usage < quota
   }
-  return true; // Assume enough space if API is not available
-};
+  return true
+}
 
 const saveGeneratedPhoto = async () => {
-  if (!generatedImage.value) return;
-  
-  const hasSpace = await checkStorageQuota();
-  if (!hasSpace) {
-    alert('Storage quota exceeded. Please clear some space.');
-    return;
+  if (!generatedImage.value) {
+    console.warn('No generated image to save.')
+    return
   }
 
-  // Handle both direct base64 and SD API response format
-  let imageData = generatedImage.value;
+  const hasSpace = await checkStorageQuota()
+  if (!hasSpace) {
+    alert('Storage quota exceeded. Please clear some space.')
+    return
+  }
+
+  let imageData = generatedImage.value
   if (typeof generatedImage.value === 'object' && generatedImage.value.images) {
-    imageData = `data:image/png;base64,${generatedImage.value.images[0]}`;
+    imageData = `data:image/png;base64,${generatedImage.value.images[0]}`
   }
 
   const photoData = {
     id: Date.now().toString(36),
     image: imageData,
     timestamp: new Date().toISOString(),
-    isGenerated: true
-  };
-
-  const existingPhotos = JSON.parse(localStorage.getItem('selfies') || '[]');
-  
-  // Limit the number of saved photos
-  if (existingPhotos.length >= 10) {
-    existingPhotos.shift(); // Remove the oldest photo
+    isGenerated: true,
   }
-  
-  existingPhotos.push(photoData);
-  localStorage.setItem('selfies', JSON.stringify(existingPhotos));
-};
+
+  const existingPhotos = JSON.parse(localStorage.getItem('selfies') || '[]')
+
+  if (existingPhotos.length >= 10) {
+    existingPhotos.shift()
+  }
+
+  existingPhotos.push(photoData)
+  localStorage.setItem('selfies', JSON.stringify(existingPhotos))
+  loadSavedPhotos()
+}
 
 const clearSavedPhotos = () => {
-  localStorage.removeItem('selfies');
-  savedPhotos.value = [];
-  selectedPhotos.value = [];
-  collagePreview.value = '';
-  qrCodeDataUrl.value = '';
-  console.log('All saved photos have been deleted.');
-};
-
-// Example of using IndexedDB to store images
-const openDatabase = () => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open('imageDatabase', 1);
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      db.createObjectStore('images', { keyPath: 'id' });
-    };
-    request.onsuccess = (event) => resolve(event.target.result);
-    request.onerror = (event) => reject(event.target.error);
-  });
-};
-
-const saveImageToIndexedDB = async (imageData) => {
-  const db = await openDatabase();
-  const transaction = db.transaction('images', 'readwrite');
-  const store = transaction.objectStore('images');
-  const imageRecord = {
-    id: Date.now().toString(36),
-    image: imageData,
-    timestamp: new Date().toISOString(),
-  };
-  store.add(imageRecord);
-  transaction.oncomplete = () => console.log('Image saved to IndexedDB');
-  transaction.onerror = (event) => console.error('Error saving image:', event.target.error);
-};
-
-const optimizeImage = (imageData) => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      let [width, height] = [img.width, img.height];
-      const maxDimension = 512; // Reduce max dimension for faster upload
-      if (width > height && width > maxDimension) {
-        height = Math.round(height * maxDimension / width);
-        width = maxDimension;
-      } else if (height > width && height > maxDimension) {
-        width = Math.round(width * maxDimension / height);
-        height = maxDimension;
-      }
-      canvas.width = width;
-      canvas.height = height;
-      ctx.drawImage(img, 0, 0, width, height);
-      // Use PNG format for better quality with SD images
-      resolve(canvas.toDataURL('image/png', 0.9));
-    };
-    img.src = imageData;
-  });
-};
+  if (confirm('Are you sure you want to delete all saved photos? This action cannot be undone.')) {
+    localStorage.removeItem('selfies')
+    savedPhotos.value = []
+    selectedPhotos.value = []
+    collagePreview.value = ''
+    qrCodeDataUrl.value = ''
+    console.log('All saved photos have been deleted.')
+  }
+}
 
 const deletePhoto = (index) => {
-  const photoToDelete = savedPhotos.value[index];
-  savedPhotos.value = savedPhotos.value.filter((_, i) => i !== index);
-  selectedPhotos.value = selectedPhotos.value.filter(photo => photo !== photoToDelete);
-  localStorage.setItem('selfies', JSON.stringify(savedPhotos.value));
-};
+  if (confirm('Are you sure you want to delete this photo?')) {
+    const photoToDelete = savedPhotos.value[index]
+    savedPhotos.value = savedPhotos.value.filter((_, i) => i !== index)
+    selectedPhotos.value = selectedPhotos.value.filter((photo) => photo !== photoToDelete)
 
-onMounted(loadSavedPhotos)
+    const requiredPhotos = { '1x1': 1, '2x2': 4 } // Menghapus 1x3
+    if (selectedPhotos.value.length === requiredPhotos[selectedLayout.value]) {
+      generateCollage()
+    } else {
+      collagePreview.value = ''
+      qrCodeDataUrl.value = ''
+    }
+  }
+}
+
+// --- Lifecycle Hook ---
+onMounted(() => {
+  loadSavedPhotos()
+  // Pastikan frame selection diatur ke nilai yang valid saat mount
+  if (lastSelectedFrames.value[selectedLayout.value]) {
+      frameSelection.value = lastSelectedFrames.value[selectedLayout.value]
+  } else {
+      // Fallback jika tidak ada nilai tersimpan
+      frameSelection.value = filteredFrameOptions.value[0]?.value || ''
+  }
+})
 </script>
 
 <style>
-
+/* --- Styles Anda sebelumnya dipertahankan --- */
 .gallery-scroll-container {
   height: 100vh;
   overflow-y: auto;
@@ -457,18 +446,6 @@ onMounted(loadSavedPhotos)
   background-color: #f7f7f7;
   border-radius: 10px;
   text-align: center;
-  /* Remove overflow-y: auto from here since we're handling it in the parent */
-}
-
-/* Container styles */
-.gallery-container {
-  padding: 1rem;
-  max-width: 1200px;
-  margin: auto;
-  background-color: #f7f7f7;
-  border-radius: 10px;
-  text-align: center;
-  overflow-y: auto;
 }
 
 /* Title styling */
@@ -534,7 +511,7 @@ h2 {
   box-shadow: 0 0 15px rgba(79, 70, 229, 0.3);
 }
 
-.frame-option.selected {
+.frame-option .selected {
   border: 3px solid #4f46e5;
   box-shadow: 0 0 10px rgba(79, 70, 229, 0.5);
 }
@@ -546,8 +523,7 @@ h2 {
 }
 
 /* Frame preview wrapper styles */
-.frame-preview-wrapper-1x1, 
-.frame-preview-wrapper-1x3,
+.frame-preview-wrapper-1x1,
 .frame-preview-wrapper-2x2 {
   display: inline-block;
   margin: 10px;
@@ -559,17 +535,12 @@ h2 {
   height: 240px;
 }
 
-.frame-preview-wrapper-1x3 {
-  width: 120px;
-  height: 360px;
-}
-
 .frame-preview-wrapper-2x2 {
   width: 240px;
   height: 280px;
 }
 
-.frame-preview-wrapper-1x3 img,
+.frame-preview-wrapper-1x1 img,
 .frame-preview-wrapper-2x2 img {
   width: 100%;
   height: 100%;
@@ -581,8 +552,8 @@ h2 {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 1rem;
-  justify-items: center;  /* This centers the photo items horizontally */
-  align-items: center;    /* This centers the photo items vertically */
+  justify-items: center;
+  align-items: center;
   margin-top: 2rem;
   width: 100%;
 }
