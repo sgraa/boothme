@@ -13,7 +13,7 @@ A web-based photo booth application that uses Stable Diffusion for AI-powered ph
 
 1.  Clone the repository:
     ```bash
-    git clone [https://github.com/sgraa/boothme.git](https://github.com/sgraa/boothme.git)
+    git clone https://github.com/sgraa/boothme.git
     cd boothme
     ```
 
