@@ -23,7 +23,7 @@ A web-based photo booth application that uses Stable Diffusion for AI-powered ph
     cd sd_models
 
     # Download the Model - link from: [https://civitai.com/api/download/models/425083](https://civitai.com/api/download/models/425083)
-    wget [http://10.4.90.23:8000/revAnimated_v2Rebirth.safetensors](http://10.4.90.23:8000/revAnimated_v2Rebirth.safetensors)
+    wget http://10.4.90.23:8000/revAnimated_v2Rebirth.safetensors
 
     # Go back to the project root directory before starting the application
     cd ..
